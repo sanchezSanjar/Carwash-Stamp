@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
@@ -16,11 +17,15 @@ class StampPainter extends CustomPainter {
     required this.config,
     required this.time,
     this.logo,
+    this.fontFamily,
   });
 
   final StampConfig config;
   final DateTime time;
   final ui.Image? logo;
+
+  /// Normally null (platform default font). Tests pass a loaded font here.
+  final String? fontFamily;
 
   static const _footerRatio = 0.14;
 
@@ -67,10 +72,32 @@ class StampPainter extends CustomPainter {
   // --------------------------------------------------------------------------
 
   void _drawStars(Canvas canvas, Offset origin, double size) {
-    final tp = _iconPainter(Icons.star, size, const Color(0xFFFFC107));
+    final paint = Paint()..color = const Color(0xFFFFC107);
     for (var i = 0; i < config.starCount; i++) {
-      tp.paint(canvas, origin + Offset(i * size * 1.12, 0));
+      final center = origin + Offset(i * size * 1.12 + size / 2, size / 2);
+      canvas.drawPath(_starPath(center, size / 2), paint);
     }
+  }
+
+  /// Five-pointed star, drawn as a path so it never depends on an icon font.
+  static Path _starPath(Offset c, double r) {
+    const points = 5;
+    final inner = r * 0.46;
+    final path = Path();
+    for (var i = 0; i < points * 2; i++) {
+      final radius = i.isEven ? r : inner;
+      final angle = -math.pi / 2 + i * math.pi / points;
+      final p = Offset(
+        c.dx + radius * math.cos(angle),
+        c.dy + radius * math.sin(angle),
+      );
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
+    }
+    return path..close();
   }
 
   void _drawBanner(
@@ -155,9 +182,9 @@ class StampPainter extends CustomPainter {
     final glow = _textPainter(
       config.formatDate(time),
       font,
-      Colors.white.withValues(alpha: 0.85),
+      Colors.white.withValues(alpha: 0.55),
       FontWeight.w600,
-      strokeWidth: 0.6 * u,
+      strokeWidth: 0.3 * u,
     );
     final pos = Offset(margin + 2.4 * u, top + (rowH - tp.height) / 2);
     glow.paint(canvas, pos);
@@ -259,6 +286,7 @@ class StampPainter extends CustomPainter {
     double? strokeWidth,
   }) {
     final style = TextStyle(
+      fontFamily: fontFamily,
       fontSize: fontSize,
       fontWeight: weight,
       color: strokeWidth == null ? color : null,
